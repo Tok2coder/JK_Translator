@@ -1,0 +1,2235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JK 번역기</title>
+    <!-- PDF.js 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <!-- docxLib.js 라이브러리 -->
+    <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            clear: both;
+        }
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .file-upload:hover {
+            border-color: #0066cc;
+        }
+        .file-upload p {
+            margin: 10px 0;
+            color: #666;
+        }
+        select, button {
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0055aa;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .fields-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .fields-column {
+            width: 48%;
+            min-width: 300px;
+        }
+        @media (max-width: 768px) {
+            .fields-column {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+        .field-item {
+            margin-bottom: 15px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .field-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        .field-item input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        .loading span {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 3px solid #ccc;
+            border-top-color: #0066cc;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        #translationSection {
+            display: none;
+        }
+        .notification {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            color: white;
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        .success {
+            background-color: #4CAF50;
+        }
+        .error {
+            background-color: #f44336;
+        }
+        .info {
+            color: #666;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .table-container {
+            margin-bottom: 20px;
+            overflow-x: auto;
+            width: 100%;
+        }
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .doc-table th, .doc-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        .doc-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: center;
+        }
+        .doc-table td input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid transparent;
+            background-color: transparent;
+            box-sizing: border-box;
+        }
+        .doc-table td input:focus {
+            border: 1px solid #0066cc;
+            background-color: white;
+        }
+        .table-title {
+            font-weight: bold;
+            margin: 10px 0;
+            color: #333;
+        }
+        .section-content {
+            margin-bottom: 30px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .section-content h4 {
+            color: #0066cc;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .section-content h5 {
+            color: #444;
+            margin-top: 0;
+        }
+        .custom-words {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .custom-word-item {
+            display: flex;
+            margin-bottom: 10px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .custom-word-item input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-width: 120px;
+        }
+        .custom-word-item button {
+            padding: 8px 12px;
+        }
+        .add-word-btn {
+            margin-top: 10px;
+            background-color: #4CAF50;
+        }
+        .remove-word-btn {
+            background-color: #f44336;
+            padding: 8px 12px;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingOverlay" class="overlay"></div>
+    <div class="container">
+        <h1>JK 번역기</h1>
+        
+        <div class="notification success" id="successNotice"></div>
+        <div class="notification error" id="errorNotice"></div>
+        
+        <div class="action-buttons">
+            <button id="newTaskBtn">작업 새로하기</button>
+        </div>
+        
+        <div class="section" id="uploadSection">
+            <div class="file-upload" id="fileUploadArea">
+                <input type="file" id="pdfFile" accept=".pdf" style="display: none;">
+                <h3>PDF 업로드</h3>
+                <p>파일을 끌어다 놓거나 클릭하여 선택하세요</p>
+                <p><small>※ 고화질 PDF 권장 (캠스캐너O, jpgX, 사진X)</small></p>
+            </div>
+            
+            <div>
+                <label for="documentType">문서 종류 선택:</label>
+                <select id="documentType">
+                    <option value="">문서 선택</option>
+                    <option value="basic">기본증명서 (상세)</option>
+                    <option value="family">가족관계증명서</option>
+                    <option value="marriage">혼인관계증명서</option>
+                </select>
+            </div>
+            
+            <div id="documentTypeOptions" style="display: none;">
+                <label for="issuanceType">한글문서 발급형태 선택:</label>
+                <select id="issuanceType">
+                    <option value="electronic">전산</option>
+                    <option value="onsite">현장</option>
+                    <option value="unmanned">무인</option>
+                </select>
+                
+                <div id="basicCertOptions" style="display: none;">
+                    <label>
+                        <input type="checkbox" id="forUsa"> "미국" 제출용 (기본증명서에 한함)
+                    </label>
+                </div>
+                
+                <div class="custom-words" id="customWordsSection">
+                    <h4>변환할 특정단어 지정</h4>
+                    <p class="info">서류상 특정단어의 원하는 영문표기를 지정하세요 (예: 이름)</p>
+                    
+                    <div id="customWordsList">
+                        <!-- 특정단어 입력 항목이 여기에 동적으로 추가됨 -->
+                    </div>
+                    
+                    <button class="add-word-btn" id="addCustomWordBtn">추가</button>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="readPdfBtn" disabled>PDF 읽기</button>
+            </div>
+            
+            <div class="loading" id="loadingSpinner">
+                <span></span> 처리 중...
+            </div>
+        </div>
+
+        <div class="section" id="fieldSection" style="display: none;">
+            <h3>문서 필드</h3>
+            <p>PDF에서 인식된 내용입니다. 필요한 경우 수정하세요.</p>
+            
+            <!-- 기본 정보 -->
+            <div class="section-content">
+                <h4>기본 정보</h4>
+                <div class="field-item">
+                    <label for="korean_title">제목</label>
+                    <input type="text" id="korean_title" placeholder="제목">
+                </div>
+                <div class="field-item">
+                    <label for="korean_registrationNumber">등록기준지</label>
+                    <input type="text" id="korean_registrationNumber" placeholder="등록기준지">
+                </div>
+            </div>
+            
+            <!-- 작성정보 -->
+            <div class="section-content">
+                <h4>작성정보</h4>
+                <div class="table-container">
+                    <table class="doc-table" id="table1">
+                        <thead>
+                            <tr>
+                                <th width="30%">구분</th>
+                                <th width="70%">상세내용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="text" id="korean_table1_row1_col1" value="작성"></td>
+                                <td><input type="text" id="korean_table1_row1_col2" placeholder="가족관계등록부작성일"></td>
+                            </tr>
+                            <tr>
+                                <td><input type="text" id="korean_table1_row2_col1" placeholder="작성사유"></td>
+                                <td><input type="text" id="korean_table1_row2_col2" placeholder="작성사유 내용"></td>
+                            </tr>
+                            <!-- 필요시 행 추가 버튼 -->
+                            <tr>
+                                <td colspan="2" style="text-align: center;">
+                                    <button id="addTable1Row">행 추가</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 인적사항 -->
+            <div class="section-content">
+                <h4>인적사항</h4>
+                <div class="table-container">
+                    <table class="doc-table" id="table2">
+                        <thead>
+                            <tr>
+                                <th width="15%">구분</th>
+                                <th width="15%">성명</th>
+                                <th width="20%">출생연월일</th>
+                                <th width="15%">주민등록번호</th>
+                                <th width="10%">성별</th>
+                                <th width="15%">본</th>
+                                <th width="10%">기타</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="text" id="korean_table2_row1_col1" value="본인"></td>
+                                <td><input type="text" id="korean_table2_row1_col2" placeholder="성명"></td>
+                                <td><input type="text" id="korean_table2_row1_col3" placeholder="출생연월일"></td>
+                                <td><input type="text" id="korean_table2_row1_col4" placeholder="주민등록번호"></td>
+                                <td><input type="text" id="korean_table2_row1_col5" placeholder="성별"></td>
+                                <td><input type="text" id="korean_table2_row1_col6" placeholder="본"></td>
+                                <td><input type="text" id="korean_table2_row1_col7" placeholder="기타"></td>
+                            </tr>
+                            <!-- 필요시 행 추가 버튼 -->
+                            <tr>
+                                <td colspan="7" style="text-align: center;">
+                                    <button id="addTable2Row">행 추가</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 등록사항 -->
+            <div class="section-content">
+                <h4>일반등록사항</h4>
+                <div class="table-container">
+                    <table class="doc-table" id="table3">
+                        <thead>
+                            <tr>
+                                <th width="30%">구분</th>
+                                <th width="70%">상세내용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="text" id="korean_table3_row1_col1" value="출생"></td>
+                                <td><input type="text" id="korean_table3_row1_col2" placeholder="출생 관련 정보"></td>
+                            </tr>
+                            <!-- 필요시 행 추가 버튼 -->
+                            <tr>
+                                <td colspan="2" style="text-align: center;">
+                                    <button id="addTable3Row">행 추가</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 기타 정보 -->
+            <div class="section-content">
+                <h4>기타 정보</h4>
+                <div class="field-item">
+                    <label for="korean_certText">증명 문구</label>
+                    <input type="text" id="korean_certText" placeholder="위 기본증명서(상세)는 가족관계등록부의 기록사항과 틀림없음을 증명합니다.">
+                </div>
+                <div class="field-item">
+                    <label for="korean_issuanceDate">발행 날짜</label>
+                    <input type="text" id="korean_issuanceDate" placeholder="발행 날짜">
+                </div>
+                <div class="field-item">
+                    <label for="korean_issuancePlace">발행 기관</label>
+                    <input type="text" id="korean_issuancePlace" placeholder="발행 기관">
+                </div>
+                <div class="field-item">
+                    <label for="korean_issuanceTime">발급 시각</label>
+                    <input type="text" id="korean_issuanceTime" placeholder="발급 시각">
+                </div>
+                <div class="field-item">
+                    <label for="korean_issuer">발급 담당자</label>
+                    <input type="text" id="korean_issuer" placeholder="발급 담당자">
+                </div>
+                <div class="field-item">
+                    <label for="korean_issuerContact">담당 연락처</label>
+                    <input type="text" id="korean_issuerContact" placeholder="담당 연락처">
+                </div>
+                <div class="field-item">
+                    <label for="korean_applicant">신청인</label>
+                    <input type="text" id="korean_applicant" placeholder="신청인">
+                </div>
+                <div class="field-item">
+                    <label for="korean_issueNumber">발행번호</label>
+                    <input type="text" id="korean_issueNumber" placeholder="발행번호">
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="translateBtn">번역하기</button>
+            </div>
+        </div>
+
+        <div class="section" id="translationSection" style="display: none;">
+            <h3>번역 결과</h3>
+            
+            <div class="section-content">
+                <h4>기본 정보</h4>
+                <div class="fields-container">
+                    <div class="fields-column">
+                        <h5>한글</h5>
+                        <div class="field-item">
+                            <label for="koreanDisplay_title">제목</label>
+                            <input type="text" id="koreanDisplay_title" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_registrationNumber">등록기준지</label>
+                            <input type="text" id="koreanDisplay_registrationNumber" readonly>
+                        </div>
+                    </div>
+                    <div class="fields-column">
+                        <h5>영문</h5>
+                        <div class="field-item">
+                            <label for="english_title">제목 (영문)</label>
+                            <input type="text" id="english_title">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_registrationNumber">등록기준지 (영문)</label>
+                            <input type="text" id="english_registrationNumber">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-content">
+                <h4>작성정보</h4>
+                <div class="fields-container">
+                    <div class="fields-column">
+                        <h5>한글</h5>
+                        <div class="table-container">
+                            <table class="doc-table" id="koreanTable1Display">
+                                <thead>
+                                    <tr>
+                                        <th width="30%">구분</th>
+                                        <th width="70%">상세내용</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 한글 테이블 내용이 동적으로 추가됨 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="fields-column">
+                        <h5>영문</h5>
+                        <div class="table-container">
+                            <table class="doc-table" id="englishTable1">
+                                <thead>
+                                    <tr>
+                                        <th width="30%">구분 (영문)</th>
+                                        <th width="70%">상세내용 (영문)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 영문 테이블 내용이 동적으로 추가됨 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <h4>인적사항</h4>
+                <div class="fields-container">
+                    <div class="fields-column">
+                        <h5>한글</h5>
+                        <div class="table-container">
+                            <table class="doc-table" id="koreanTable2Display">
+                                <thead>
+                                    <tr>
+                                        <th width="15%">구분</th>
+                                        <th width="15%">성명</th>
+                                        <th width="20%">출생연월일</th>
+                                        <th width="15%">주민등록번호</th>
+                                        <th width="10%">성별</th>
+                                        <th width="15%">본</th>
+                                        <th width="10%">기타</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 한글 테이블 내용이 동적으로 추가됨 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="fields-column">
+                        <h5>영문</h5>
+                        <div class="table-container">
+                            <table class="doc-table" id="englishTable2">
+                                <thead>
+                                    <tr>
+                                        <th width="15%">구분 (영문)</th>
+                                        <th width="15%">성명 (영문)</th>
+                                        <th width="20%">출생연월일 (영문)</th>
+                                        <th width="15%">주민등록번호 (영문)</th>
+                                        <th width="10%">성별 (영문)</th>
+                                        <th width="15%">본 (영문)</th>
+                                        <th width="10%">기타 (영문)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 영문 테이블 내용이 동적으로 추가됨 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-content">
+                <h4>일반등록사항</h4>
+                <div class="fields-container">
+                    <div class="fields-column">
+                        <h5>한글</h5>
+                        <div class="table-container">
+                            <table class="doc-table" id="koreanTable3Display">
+                                <thead>
+                                    <tr>
+                                        <th width="30%">구분</th>
+                                        <th width="70%">상세내용</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 한글 테이블 내용이 동적으로 추가됨 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="fields-column">
+                        <h5>영문</h5>
+                        <div class="table-container">
+                            <table class="doc-table" id="englishTable3">
+                                <thead>
+                                    <tr>
+                                        <th width="30%">구분 (영문)</th>
+                                        <th width="70%">상세내용 (영문)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 영문 테이블 내용이 동적으로 추가됨 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-content">
+                <h4>기타 정보</h4>
+                <div class="fields-container">
+                    <div class="fields-column">
+                        <h5>한글</h5>
+                        <div class="field-item">
+                            <label for="koreanDisplay_certText">증명 문구</label>
+                            <input type="text" id="koreanDisplay_certText" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_issuanceDate">발행 날짜</label>
+                            <input type="text" id="koreanDisplay_issuanceDate" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_issuancePlace">발행 기관</label>
+                            <input type="text" id="koreanDisplay_issuancePlace" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_issuanceTime">발급 시각</label>
+                            <input type="text" id="koreanDisplay_issuanceTime" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_issuer">발급 담당자</label>
+                            <input type="text" id="koreanDisplay_issuer" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_issuerContact">담당 연락처</label>
+                            <input type="text" id="koreanDisplay_issuerContact" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_applicant">신청인</label>
+                            <input type="text" id="koreanDisplay_applicant" readonly>
+                        </div>
+                        <div class="field-item">
+                            <label for="koreanDisplay_issueNumber">발행번호</label>
+                            <input type="text" id="koreanDisplay_issueNumber" readonly>
+                        </div>
+                    </div>
+                    <div class="fields-column">
+                        <h5>영문</h5>
+                        <div class="field-item">
+                            <label for="english_certText">증명 문구 (영문)</label>
+                            <input type="text" id="english_certText">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_issuanceDate">발행 날짜 (영문)</label>
+                            <input type="text" id="english_issuanceDate">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_issuancePlace">발행 기관 (영문)</label>
+                            <input type="text" id="english_issuancePlace">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_issuanceTime">발급 시각 (영문)</label>
+                            <input type="text" id="english_issuanceTime">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_issuer">발급 담당자 (영문)</label>
+                            <input type="text" id="english_issuer">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_issuerContact">담당 연락처 (영문)</label>
+                            <input type="text" id="english_issuerContact">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_applicant">신청인 (영문)</label>
+                            <input type="text" id="english_applicant">
+                        </div>
+                        <div class="field-item">
+                            <label for="english_issueNumber">발행번호 (영문)</label>
+                            <input type="text" id="english_issueNumber">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="downloadWordBtn">Word 파일로 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API URL (실제 배포 환경에 맞게 수정 필요)
+        const API_BASE_URL = 'http://localhost:3000/api';
+        
+        // docx.js 라이브러리를 전역 변수로 저장
+        let DocxJS = window.docx || window.docx || {};
+
+        // DOM 요소 참조
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const pdfFileInput = document.getElementById('pdfFile');
+        const documentTypeSelect = document.getElementById('documentType');
+        const documentTypeOptions = document.getElementById('documentTypeOptions');
+        const issuanceTypeSelect = document.getElementById('issuanceType');
+        const basicCertOptions = document.getElementById('basicCertOptions');
+        const forUsaCheckbox = document.getElementById('forUsa');
+        const customWordsSection = document.getElementById('customWordsSection');
+        const customWordsList = document.getElementById('customWordsList');
+        const addCustomWordBtn = document.getElementById('addCustomWordBtn');
+        const readPdfBtn = document.getElementById('readPdfBtn');
+        const translateBtn = document.getElementById('translateBtn');
+        const downloadWordBtn = document.getElementById('downloadWordBtn');
+        const newTaskBtn = document.getElementById('newTaskBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const successNotice = document.getElementById('successNotice');
+        const errorNotice = document.getElementById('errorNotice');
+        const fieldSection = document.getElementById('fieldSection');
+        const translationSection = document.getElementById('translationSection');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        
+        // 테이블 행 추가 버튼
+        const addTable1RowBtn = document.getElementById('addTable1Row');
+        const addTable2RowBtn = document.getElementById('addTable2Row');
+        const addTable3RowBtn = document.getElementById('addTable3Row');
+        
+        // 알림 표시 함수
+        function showNotification(element, message, duration = 3000) {
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, duration);
+        }
+            
+        // 파일 업로드 이벤트 리스너
+        fileUploadArea.addEventListener('click', () => {
+            pdfFileInput.click();
+        });
+
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#0066cc';
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.style.borderColor = '#ccc';
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#ccc';
+            
+            if (e.dataTransfer.files.length) {
+                pdfFileInput.files = e.dataTransfer.files;
+                handleFileSelected();
+            }
+        });
+
+        pdfFileInput.addEventListener('change', handleFileSelected);
+
+        function handleFileSelected() {
+            const file = pdfFileInput.files[0];
+            if (file && file.type === 'application/pdf') {
+                fileUploadArea.querySelector('p').textContent = `선택된 파일: ${file.name}`;
+                readPdfBtn.disabled = !documentTypeSelect.value;
+            }
+        }
+
+        // 문서 종류 선택 이벤트 리스너
+        documentTypeSelect.addEventListener('change', () => {
+            const selectedType = documentTypeSelect.value;
+            if (selectedType) {
+                documentTypeOptions.style.display = 'block';
+                basicCertOptions.style.display = selectedType === 'basic' ? 'block' : 'none';
+                readPdfBtn.disabled = !pdfFileInput.files.length;
+            } else {
+                documentTypeOptions.style.display = 'none';
+                readPdfBtn.disabled = true;
+            }
+        });
+
+        // 테이블 행 추가 함수
+        function addTableRow(tableId, colCount) {
+            const table = document.getElementById(tableId);
+            const rowCount = table.rows.length;
+            const newRowIndex = rowCount - 1; // 마지막 행 이전에 추가 (버튼 행 앞에)
+            
+            const row = table.insertRow(newRowIndex);
+            
+            for (let i = 0; i < colCount; i++) {
+                const cell = row.insertCell(i);
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `korean_${tableId}_row${newRowIndex}_col${i+1}`;
+                input.placeholder = `입력`;
+                cell.appendChild(input);
+            }
+        }
+        
+        // 테이블 행 추가 버튼 이벤트 리스너
+        addTable1RowBtn.addEventListener('click', () => {
+            addTableRow('table1', 2);
+        });
+        
+        addTable2RowBtn.addEventListener('click', () => {
+            addTableRow('table2', 7);
+        });
+        
+        addTable3RowBtn.addEventListener('click', () => {
+            addTableRow('table3', 2);
+        });
+        
+        // 특정단어 추가 이벤트 리스너
+        addCustomWordBtn.addEventListener('click', () => {
+            addCustomWordField();
+        });
+
+        function addCustomWordField(koreanWord = '', englishWord = '') {
+            const wordItem = document.createElement('div');
+            wordItem.className = 'custom-word-item';
+            
+            const koreanInput = document.createElement('input');
+            koreanInput.type = 'text';
+            koreanInput.placeholder = '한글 단어';
+            koreanInput.value = koreanWord;
+            koreanInput.className = 'korean-word';
+            
+            const englishInput = document.createElement('input');
+            englishInput.type = 'text';
+            englishInput.placeholder = '영문 표기';
+            englishInput.value = englishWord;
+            englishInput.className = 'english-word';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-word-btn';
+            removeBtn.textContent = '삭제';
+            removeBtn.addEventListener('click', () => {
+                customWordsList.removeChild(wordItem);
+            });
+            
+            wordItem.appendChild(koreanInput);
+            wordItem.appendChild(englishInput);
+            wordItem.appendChild(removeBtn);
+            
+            customWordsList.appendChild(wordItem);
+        }
+
+        // 특정단어 목록 가져오기
+        function getCustomWords() {
+            const customWords = {};
+            const wordItems = customWordsList.querySelectorAll('.custom-word-item');
+            
+            wordItems.forEach(item => {
+                const koreanWord = item.querySelector('.korean-word').value.trim();
+                const englishWord = item.querySelector('.english-word').value.trim();
+                
+                if (koreanWord && englishWord) {
+                    customWords[koreanWord] = englishWord;
+                }
+            });
+            
+            return customWords;
+        }
+
+        // PDF에서 텍스트 추출 함수
+        async function extractTextFromPdf(file) {
+            // PDF.js 워커 설정
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+                
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    
+                    // 항목별로 텍스트 추출 후 정리
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    
+                    // 불필요한 공백 정리 (연속된 공백을 하나로)
+                    const cleanedText = pageText.replace(/\s+/g, ' ');
+                    
+                    fullText += cleanedText + '\n';
+                }
+                
+                return fullText;
+            } catch (error) {
+                console.error('PDF 텍스트 추출 오류:', error);
+                throw new Error('PDF 텍스트 추출 중 오류가 발생했습니다.');
+            }
+        }
+
+        // PDF 읽기 버튼 클릭 이벤트
+        readPdfBtn.addEventListener('click', async () => {
+            const file = pdfFileInput.files[0];
+            if (!file) return;
+
+            // 로딩 표시
+            loadingSpinner.style.display = 'block';
+            loadingOverlay.style.display = 'block';
+            
+            try {
+                // PDF 텍스트 추출
+                const extractedText = await extractTextFromPdf(file);
+                console.log("추출된 텍스트:", extractedText.substring(0, 500) + '...'); // 디버깅용
+                
+                // 추출된 텍스트를 기반으로 필드 채우기
+                extractAndPopulateFields(extractedText);
+                
+                // 필드 섹션 표시
+                fieldSection.style.display = 'block';
+                
+                // 스크롤
+                fieldSection.scrollIntoView({ behavior: 'smooth' });
+                
+                showNotification(successNotice, 'PDF 읽기 완료! 필요한 경우 내용을 수정하세요.');
+            } catch (error) {
+                console.error('PDF 처리 중 오류 발생:', error);
+                showNotification(errorNotice, 'PDF 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+            } finally {
+                loadingSpinner.style.display = 'none';
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        // 텍스트 추출 및 필드 채우기
+        function extractAndPopulateFields(extractedText) {
+            console.log("필드 추출 시작");
+            
+            const documentType = documentTypeSelect.value;
+            
+            if (documentType === 'basic') {
+                // 제목 추출 - "기본증명서 (상세)" 패턴 찾기
+                const titleRegex = /기\s*본\s*증\s*명\s*서\s*\(\s*상\s*세\s*\)/;
+                const titleMatch = extractedText.match(titleRegex);
+                if (titleMatch) {
+                    document.getElementById('korean_title').value = "기본증명서 (상세)";
+                }
+                
+                // 등록기준지 추출
+                const regNumberRegex = /등록기준지\s+([\s\S]+?)(?=구\s+분|$)/;
+                const regNumberMatch = extractedText.match(regNumberRegex);
+                if (regNumberMatch) {
+                    document.getElementById('korean_registrationNumber').value = regNumberMatch[1].trim();
+                }
+                
+                // 작성정보 추출 (table1)
+                // 가족관계등록부 작성일 추출
+                const creationDateRegex = /\[가족관계등록부작성일\]\s+([\d년\s월일]+)/;
+                const creationDateMatch = extractedText.match(creationDateRegex);
+                if (creationDateMatch) {
+                    document.getElementById('korean_table1_row1_col1').value = '작성';
+                    document.getElementById('korean_table1_row1_col2').value = `[가족관계등록부작성일] ${creationDateMatch[1].trim()}`;
+                }
+                
+                // 작성사유 추출
+                const creationReasonRegex = /\[작성사유\]\s+([\s\S]+?)(?=구분|$)/;
+                const creationReasonMatch = extractedText.match(creationReasonRegex);
+                if (creationReasonMatch) {
+                    document.getElementById('korean_table1_row2_col1').value = '작성사유';
+                    document.getElementById('korean_table1_row2_col2').value = `[작성사유] ${creationReasonMatch[1].trim()}`;
+                }
+                
+                // 인적사항 추출 (table2)
+                // 패턴: "구분   성   명   출생연월일   주민등록번호   성별   본" 다음에 나오는 정보
+                const personalInfoRegex = /구분\s+성\s+명\s+출생연월일\s+주민등록번호\s+성별\s+본\s+([\s\S]+?)(?=일반등록사항|$)/;
+                const personalInfoMatch = extractedText.match(personalInfoRegex);
+                
+                if (personalInfoMatch) {
+                    const personalInfo = personalInfoMatch[1].trim();
+                    
+                    // 이름 추출
+                    const nameRegex = /([가-힣]+(?:\([^)]*\))?)\s+본인/;
+                    const nameMatch = personalInfo.match(nameRegex);
+                    if (nameMatch) {
+                        // 괄호와 괄호 안의 내용 제거
+                        let name = nameMatch[1].trim();
+                        name = name.replace(/\([^)]*\)/g, '').trim();
+                        document.getElementById('korean_table2_row1_col2').value = name;
+                    }
+                    
+                    // 출생연월일 추출
+                    const birthDateRegex = /(\d{4}년\s*\d{2}월\s*\d{2}일)/;
+                    const birthDateMatch = personalInfo.match(birthDateRegex);
+                    if (birthDateMatch) {
+                        document.getElementById('korean_table2_row1_col3').value = birthDateMatch[1].trim();
+                    }
+                    
+                    // 주민등록번호 추출
+                    const idNumberRegex = /(\d{6}-\d{7})/;
+                    const idNumberMatch = personalInfo.match(idNumberRegex);
+                    if (idNumberMatch) {
+                        document.getElementById('korean_table2_row1_col4').value = idNumberMatch[1].trim();
+                    }
+                    
+                    // 성별 추출
+                    const genderRegex = /\d{6}-\d{7}\s+(남|여)/;
+                    const genderMatch = personalInfo.match(genderRegex);
+                    if (genderMatch) {
+                        document.getElementById('korean_table2_row1_col5').value = genderMatch[1].trim();
+                    }
+                    
+                    // 본 추출 (있는 경우)
+                    const originRegex = /성별\s+본\s+([^\s]+)/;
+                    const originMatch = personalInfo.match(originRegex);
+                    if (originMatch) {
+                        document.getElementById('korean_table2_row1_col6').value = originMatch[1].trim();
+                    }
+                }
+                
+                // 일반등록사항 추출 (table3)
+                const registerInfoRegex = /일반등록사항\s+구\s+분\s+상\s+세\s+내\s+용\s+출생\s+([\s\S]+?)(?=위\s+기본증명서|$)/;
+                const registerInfoMatch = extractedText.match(registerInfoRegex);
+                if (registerInfoMatch) {
+                    document.getElementById('korean_table3_row1_col1').value = '출생';
+                    document.getElementById('korean_table3_row1_col2').value = registerInfoMatch[1].trim();
+                }
+                
+                // 증명 문구 추출
+                const certTextRegex = /(위\s+기본증명서\(상세\)는\s+가족관계등록부의\s+기록사항과\s+틀림없음을\s+증명합니다\.)/;
+                const certTextMatch = extractedText.match(certTextRegex);
+                if (certTextMatch) {
+                    document.getElementById('korean_certText').value = certTextMatch[1].replace(/\s+/g, ' ').trim();
+                }
+                
+                // 발행 날짜와 발행 기관 추출
+                const certAndDateRegex = /위\s+기본증명서\(상세\)는\s+가족관계등록부의\s+기록사항과\s+틀림없음을\s+증명합니다\.\s+(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)\s+(.*?)(?=\s*※|$)/;
+                const certAndDateMatch = extractedText.match(certAndDateRegex);
+
+                if (certAndDateMatch) {
+                    // 발행 날짜
+                    document.getElementById('korean_issuanceDate').value = certAndDateMatch[1].trim();
+                    
+                    // 발행 기관
+                    document.getElementById('korean_issuancePlace').value = certAndDateMatch[2].trim();
+                } else {
+                    // 대체 패턴 시도
+                    const certAndDateText = extractedText.match(/증명합니다\.([\s\S]*?)(?=※|$)/);
+                    if (certAndDateText) {
+                        console.log("증명합니다와 ※ 사이 텍스트:", certAndDateText[1]);
+                        
+                        // 이 구간에서 날짜 추출
+                        const dateInCert = certAndDateText[1].match(/(\d{4}년\s*\d{1,2}월\s*\d{1,2}일)/);
+                        console.log("이 구간에서의 날짜:", dateInCert);
+                        
+                        if (dateInCert) {
+                            // 날짜 이후 텍스트를 발행 기관으로 간주
+                            const placeText = certAndDateText[1].split(dateInCert[0])[1]?.trim();
+                            console.log("발행 기관만:", placeText);
+                            
+                            document.getElementById('korean_issuanceDate').value = dateInCert[0].trim();
+                            if (placeText) {
+                                document.getElementById('korean_issuancePlace').value = placeText;
+                            }
+                        }
+                    }
+                }
+
+                // 발급 시각 추출
+                const issuanceTimeRegex = /발급시각\s*:\s*(\d{1,2}시\s*\d{1,2}분)/;
+                const issuanceTimeMatch = extractedText.match(issuanceTimeRegex);
+                if (issuanceTimeMatch) {
+                    document.getElementById('korean_issuanceTime').value = issuanceTimeMatch[1].trim();
+                }
+                
+                // 신청인 추출
+                const applicantRegex = /신청인\s*:\s*([^\s]+)/;
+                const applicantMatch = extractedText.match(applicantRegex);
+                if (applicantMatch) {
+                    document.getElementById('korean_applicant').value = applicantMatch[1].trim();
+                }
+                
+                // 발행번호 추출
+                const issueNumberRegex = /발행번호\s*:\s*(\d{4}-\d{4}-\d{4}-\d{4})/;
+                const issueNumberMatch = extractedText.match(issueNumberRegex);
+                if (issueNumberMatch) {
+                    document.getElementById('korean_issueNumber').value = issueNumberMatch[1].trim();
+                }
+            }
+            // 다른 문서 유형도 필요에 따라 구현 가능
+            else if (documentType === 'family') {
+                // 가족관계증명서 필드 추출 로직 구현
+                document.getElementById('korean_title').value = "가족관계증명서";
+                // 나머지 필드 추출 로직 구현...
+            }
+            else if (documentType === 'marriage') {
+                // 혼인관계증명서 필드 추출 로직 구현
+                document.getElementById('korean_title').value = "혼인관계증명서";
+                // 나머지 필드 추출 로직 구현...
+            }
+            
+            console.log("필드 추출 완료");
+        }
+
+        // 모든 필드값 수집
+        function collectAllFieldValues() {
+            const values = {};
+            
+            // 기본 정보 수집
+            values.title = document.getElementById('korean_title').value;
+            values.registrationNumber = document.getElementById('korean_registrationNumber').value;
+            
+            // 테이블 데이터 수집
+            values.table1 = collectTableValues('table1');
+            values.table2 = collectTableValues('table2');
+            values.table3 = collectTableValues('table3');
+            
+            // 기타 정보 수집
+            values.certText = document.getElementById('korean_certText').value;
+            values.issuanceDate = document.getElementById('korean_issuanceDate').value;
+            values.issuancePlace = document.getElementById('korean_issuancePlace').value;
+            values.issuanceTime = document.getElementById('korean_issuanceTime').value;
+            values.issuer = document.getElementById('korean_issuer').value;
+            values.issuerContact = document.getElementById('korean_issuerContact').value;
+            values.applicant = document.getElementById('korean_applicant').value;
+            values.issueNumber = document.getElementById('korean_issueNumber').value;
+            
+            return values;
+        }
+        
+        // 테이블 값 수집
+        function collectTableValues(tableId) {
+            const table = document.getElementById(tableId);
+            const rowCount = table.rows.length - 1; // 버튼 행 제외
+            const colCount = table.rows[1].cells.length; // 첫 번째 데이터 행의 셀 수
+            const tableData = [];
+            
+            for (let i = 1; i < rowCount; i++) { // 헤더 행 제외, 버튼 행 제외
+                const rowData = [];
+                for (let j = 0; j < colCount; j++) {
+                    const inputId = `korean_${tableId}_row${i}_col${j+1}`;
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        rowData.push(input.value);
+                    } else {
+                        rowData.push('');
+                    }
+                }
+                tableData.push(rowData);
+            }
+            
+            return tableData;
+        }
+        
+        // 번역 버튼 클릭 이벤트 리스너
+        translateBtn.addEventListener('click', async () => {
+            // 로딩 표시
+            loadingSpinner.style.display = 'block';
+            loadingOverlay.style.display = 'block';
+            
+            try {
+                // 한글 필드값 수집
+                const koreanValues = collectAllFieldValues();
+                
+                // 사용자 정의 특정단어 목록 가져오기
+                const customWords = getCustomWords();
+                
+                console.log('번역 요청 데이터:', {
+                    values: koreanValues,
+                    documentType: documentTypeSelect.value,
+                    customWords: customWords,
+                    forUsa: forUsaCheckbox.checked
+                });
+                
+                let translatedValues;
+                
+                // 서버 API 호출 시도
+                try {
+                    // 서버 API 호출
+                    const response = await fetch(`${API_BASE_URL}/translate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            values: koreanValues,
+                            documentType: documentTypeSelect.value,
+                            customWords: customWords,
+                            forUsa: forUsaCheckbox.checked
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('서버 응답 오류:', response.status, errorText);
+                        throw new Error('번역 요청 실패');
+                    }
+                    
+                    const data = await response.json();
+                    console.log('서버에서 받은 번역 응답:', data);
+                    translatedValues = data.translations;
+                    
+                } catch (apiError) {
+                    console.error('서버 번역 실패, 클라이언트측 번역 사용:', apiError);
+                    // 서버 API 실패 시 클라이언트측 번역 사용
+                    translatedValues = clientSideTranslation(koreanValues, customWords);
+                    console.log('클라이언트측 번역 결과:', translatedValues);
+                }
+                
+                // 번역된 값을 화면에 표시하기 전에 유효성 검사 및 누락된 값 복구
+                checkAndFixEmptyValues(translatedValues, koreanValues);
+                
+                // 번역된 값 표시
+                displayTranslationResults(koreanValues, translatedValues);
+                
+                // 번역 섹션 표시
+                translationSection.style.display = 'block';
+                translationSection.scrollIntoView({ behavior: 'smooth' });
+                
+                showNotification(successNotice, '번역 완료! 필요한 경우 영문 내용을 수정하세요.');
+            } catch (error) {
+                console.error('번역 중 오류 발생:', error);
+                showNotification(errorNotice, '번역 중 오류가 발생했습니다. 다시 시도해주세요.');
+            } finally {
+                loadingSpinner.style.display = 'none';
+                loadingOverlay.style.display = 'none';
+            }
+        });
+        
+        // 빈 값 또는 잘못된 값 체크 및 복구
+        function checkAndFixEmptyValues(translatedValues, koreanValues) {
+            console.log('번역값 검증 및 복구 시작');
+            
+            // 기본 정보 확인
+            if (!translatedValues.title || translatedValues.title === '') {
+                console.warn('제목 번역 누락, 기본값 사용');
+                if (koreanValues.title === '기본증명서 (상세)') {
+                    translatedValues.title = 'Basic Certificate (Detailed)';
+                } else if (koreanValues.title === '가족관계증명서') {
+                    translatedValues.title = 'Family Relations Certificate';
+                } else if (koreanValues.title === '혼인관계증명서') {
+                    translatedValues.title = 'Marriage Certificate';
+                } else {
+                    translatedValues.title = koreanValues.title;
+                }
+            }
+            
+            if (!translatedValues.registrationNumber || translatedValues.registrationNumber === '') {
+                console.warn('등록기준지 번역 누락, 기본값 사용');
+                translatedValues.registrationNumber = `Registration Address: ${koreanValues.registrationNumber}`;
+            }
+            
+            // 테이블 데이터 확인 및 복구
+            ['table1', 'table2', 'table3'].forEach(tableKey => {
+                if (!translatedValues[tableKey] || !Array.isArray(translatedValues[tableKey]) || 
+                    translatedValues[tableKey].length === 0) {
+                    
+                    console.warn(`${tableKey} 번역 누락, 기본값 적용`);
+                    
+                    // 기본값으로 초기화
+                    translatedValues[tableKey] = [];
+                    
+                    if (koreanValues[tableKey] && Array.isArray(koreanValues[tableKey])) {
+                        translatedValues[tableKey] = koreanValues[tableKey].map(row => {
+                            if (!Array.isArray(row)) return [];
+                            
+                            return row.map((cell, i) => {
+                                // 간단한 기본 번역 적용
+                                if (!cell) return '';
+                                
+                                // 구분 필드 기본 번역
+                                if (i === 0) {
+                                    if (cell === '본인') return 'Subject';
+                                    if (cell === '부') return 'Father';
+                                    if (cell === '모') return 'Mother';
+                                    if (cell === '출생') return 'Birth';
+                                    if (cell === '작성') return 'Creation';
+                                    if (cell === '작성사유') return 'Reason for Creation';
+                                }
+                                
+                                // 성별 필드 기본 번역 (인적사항 테이블)
+                                if (tableKey === 'table2' && i === 4) {
+                                    if (cell === '남') return 'Male';
+                                    if (cell === '여') return 'Female';
+                                }
+                                
+                                // 날짜 형식 변환
+                                const dateMatch = cell.match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                                if (dateMatch) {
+                                    const [_, year, month, day] = dateMatch;
+                                    return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                                }
+                                
+                                return cell; // 그 외는 원본 값 유지
+                            });
+                        });
+                    }
+                } else {
+                    // 번역된 테이블이 있지만 row 또는 cell이 객체인 경우 처리
+                    translatedValues[tableKey] = translatedValues[tableKey].map((row, rowIndex) => {
+                        if (!Array.isArray(row)) {
+                            console.warn(`${tableKey} 행(${rowIndex})이 배열이 아님, 복구 시도`);
+                            return koreanValues[tableKey][rowIndex] || [];
+                        }
+                        
+                        return row.map((cell, cellIndex) => {
+                            if (cell === null || cell === undefined || typeof cell === 'object') {
+                                console.warn(`${tableKey} 셀(${rowIndex},${cellIndex})이 유효하지 않음, 복구 시도`);
+                                
+                                const koreanCell = koreanValues[tableKey][rowIndex]?.[cellIndex] || '';
+                                
+                                // 기본 번역 적용
+                                if (cellIndex === 0) { // 구분 필드
+                                    if (koreanCell === '본인') return 'Subject';
+                                    if (koreanCell === '부') return 'Father';
+                                    if (koreanCell === '모') return 'Mother';
+                                    if (koreanCell === '출생') return 'Birth';
+                                    if (koreanCell === '작성') return 'Creation';
+                                    if (koreanCell === '작성사유') return 'Reason for Creation';
+                                }
+                                
+                                // 성별 필드 기본 번역 (인적사항 테이블)
+                                if (tableKey === 'table2' && cellIndex === 4) {
+                                    if (koreanCell === '남') return 'Male';
+                                    if (koreanCell === '여') return 'Female';
+                                }
+                                
+                                // 날짜 형식 변환
+                                const dateMatch = koreanCell.match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                                if (dateMatch) {
+                                    const [_, year, month, day] = dateMatch;
+                                    return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                                }
+                                
+                                return koreanCell;
+                            }
+                            
+                            return cell;
+                        });
+                    });
+                }
+            });
+            
+            // 기타 필드 확인
+            const otherFields = ['certText', 'issuanceDate', 'issuancePlace', 'issuanceTime', 'issuer', 'issuerContact', 'applicant', 'issueNumber'];
+            
+            otherFields.forEach(field => {
+                if (!translatedValues[field] || translatedValues[field] === '' || typeof translatedValues[field] === 'object') {
+                    console.warn(`${field} 번역 누락, 기본값 사용`);
+                    
+                    // 필드별 기본 번역
+                    if (field === 'certText') {
+                        translatedValues[field] = 'This is to certify that the above Basic Certificate (Detailed) is in accordance with the records of the Family Relationship Registry.';
+                    } 
+                    else if (field === 'issuanceDate' && koreanValues[field]) {
+                        const dateMatch = koreanValues[field].match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                        if (dateMatch) {
+                            const [_, year, month, day] = dateMatch;
+                            translatedValues[field] = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                        } else {
+                            translatedValues[field] = koreanValues[field];
+                        }
+                    } 
+                    else if (field === 'issuancePlace' && koreanValues[field]) {
+                        translatedValues[field] = `Issuing Authority: ${koreanValues[field]}`;
+                    }
+                    else if (field === 'issuanceTime' && koreanValues[field]) {
+                        translatedValues[field] = `Issue Time: ${koreanValues[field]}`;
+                    }
+                    else if (field === 'applicant' && koreanValues[field]) {
+                        translatedValues[field] = `Applicant: ${koreanValues[field]}`;
+                    }
+                    else if (field === 'issueNumber' && koreanValues[field]) {
+                        translatedValues[field] = `Issue Number: ${koreanValues[field]}`;
+                    }
+                    else {
+                        translatedValues[field] = koreanValues[field] || '';
+                    }
+                }
+            });
+            
+            console.log('번역값 검증 및 복구 완료');
+        }
+        
+        // 번역된 값 표시
+        function displayTranslationResults(koreanValues, translatedValues) {
+            console.log('번역 결과 표시 시작', translatedValues);
+
+            // 요소 존재 확인 후 값 설정하는 헬퍼 함수
+            function setValueIfElementExists(elementId, value) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    console.log(`설정: ${elementId} = ${value}`);
+                    element.value = value || '';
+                } else {
+                    console.warn(`요소를 찾을 수 없음: ${elementId}`);
+                }
+            }
+
+            // 테이블 번역 결과 표시
+            function displayTableTranslation(koreanTableId, englishTableId, koreanData, translatedData, colCount) {
+                console.log(`테이블 표시 시작: ${koreanTableId} -> ${englishTableId}`);
+                console.log('한글 데이터:', koreanData);
+                console.log('영문 데이터:', translatedData);
+                
+                const koreanTable = document.getElementById(koreanTableId);
+                const englishTable = document.getElementById(englishTableId);
+                
+                // 테이블이 존재하는지 확인
+                if (!koreanTable || !englishTable) {
+                    console.warn(`테이블을 찾을 수 없음: ${koreanTableId} 또는 ${englishTableId}`);
+                    return;
+                }
+                
+                // 데이터가 존재하는지 확인
+                if (!koreanData || !Array.isArray(koreanData) || koreanData.length === 0) {
+                    console.warn(`테이블 데이터가 없거나 배열이 아님: ${koreanTableId}`);
+                    koreanData = [Array(colCount).fill('')];
+                }
+                
+                if (!translatedData || !Array.isArray(translatedData) || translatedData.length === 0) {
+                    console.warn(`번역된 데이터가 없거나 배열이 아님: ${englishTableId}`);
+                    translatedData = koreanData.map(row => Array(row.length).fill(''));
+                }
+                
+                // 기존 행 제거 (헤더 제외)
+                while (koreanTable.rows.length > 1) {
+                    koreanTable.deleteRow(1);
+                }
+                
+                while (englishTable.rows.length > 1) {
+                    englishTable.deleteRow(1);
+                }
+                
+                // 데이터 행 추가
+                koreanData.forEach((rowData, rowIndex) => {
+                    const koreanRow = koreanTable.insertRow();
+                    const englishRow = englishTable.insertRow();
+                    
+                    for (let i = 0; i < colCount; i++) {
+                        // 한글 셀
+                        const koreanCell = koreanRow.insertCell();
+                        const koreanInput = document.createElement('input');
+                        koreanInput.type = 'text';
+                        koreanInput.value = rowData[i] || '';
+                        koreanInput.readOnly = true;
+                        koreanCell.appendChild(koreanInput);
+                        
+                        // 영문 셀
+                        const englishCell = englishRow.insertCell();
+                        const englishInput = document.createElement('input');
+                        englishInput.type = 'text';
+                        
+                        // 번역된 데이터 확인 및 표시
+                        let translatedValue = '';
+                        
+                        if (translatedData && translatedData[rowIndex]) {
+                            const cellData = translatedData[rowIndex][i];
+                            
+                            // 데이터 타입 및 값 확인
+                            if (cellData !== undefined && cellData !== null) {
+                                if (typeof cellData === 'object') {
+                                    console.warn(`객체 형태의 번역 데이터 발견: ${JSON.stringify(cellData)}`);
+                                    // Promise나 빈 객체일 가능성이 있음 - 기본값 사용
+                                    translatedValue = '';
+                                } else {
+                                    translatedValue = cellData.toString();
+                                }
+                            }
+                        }
+                        
+                        englishInput.value = translatedValue;
+                        englishInput.id = `english_${englishTableId}_row${rowIndex+1}_col${i+1}`;
+                        englishCell.appendChild(englishInput);
+                    }
+                });
+            }
+            
+            // 기본 정보 표시
+            setValueIfElementExists('koreanDisplay_title', koreanValues.title);
+            setValueIfElementExists('koreanDisplay_registrationNumber', koreanValues.registrationNumber);
+            setValueIfElementExists('english_title', translatedValues.title);
+            setValueIfElementExists('english_registrationNumber', translatedValues.registrationNumber);
+            
+            // 테이블 데이터 표시
+            displayTableTranslation('koreanTable1Display', 'englishTable1', koreanValues.table1, translatedValues.table1, 2);
+            displayTableTranslation('koreanTable2Display', 'englishTable2', koreanValues.table2, translatedValues.table2, 7);
+            displayTableTranslation('koreanTable3Display', 'englishTable3', koreanValues.table3, translatedValues.table3, 2);
+            
+            // 기타 정보 표시
+            setValueIfElementExists('koreanDisplay_certText', koreanValues.certText);
+            setValueIfElementExists('koreanDisplay_issuanceDate', koreanValues.issuanceDate);
+            setValueIfElementExists('koreanDisplay_issuancePlace', koreanValues.issuancePlace);
+            setValueIfElementExists('koreanDisplay_issuanceTime', koreanValues.issuanceTime);
+            setValueIfElementExists('koreanDisplay_issuer', koreanValues.issuer);
+            setValueIfElementExists('koreanDisplay_issuerContact', koreanValues.issuerContact);
+            setValueIfElementExists('koreanDisplay_applicant', koreanValues.applicant);
+            setValueIfElementExists('koreanDisplay_issueNumber', koreanValues.issueNumber);
+            
+            setValueIfElementExists('english_certText', translatedValues.certText);
+            setValueIfElementExists('english_issuanceDate', translatedValues.issuanceDate);
+            setValueIfElementExists('english_issuancePlace', translatedValues.issuancePlace);
+            setValueIfElementExists('english_issuanceTime', translatedValues.issuanceTime);
+            setValueIfElementExists('english_issuer', translatedValues.issuer);
+            setValueIfElementExists('english_issuerContact', translatedValues.issuerContact);
+            setValueIfElementExists('english_applicant', translatedValues.applicant);
+            setValueIfElementExists('english_issueNumber', translatedValues.issueNumber);
+        }
+
+        // 클라이언트측 번역 함수 (서버 API 호출 실패 시 사용)
+        function clientSideTranslation(koreanValues, customWords) {
+            console.log('클라이언트측 기본 번역 시작');
+            const translatedValues = {};
+            
+            // 기본 정보 번역
+            if (koreanValues.title === '기본증명서 (상세)') {
+                translatedValues.title = 'Basic Certificate (Detailed)';
+            } else if (koreanValues.title === '가족관계증명서') {
+                translatedValues.title = 'Family Relations Certificate';
+            } else if (koreanValues.title === '혼인관계증명서') {
+                translatedValues.title = 'Marriage Certificate';
+            } else {
+                translatedValues.title = koreanValues.title;
+            }
+            
+            translatedValues.registrationNumber = `Registration Address: ${koreanValues.registrationNumber}`;
+            
+            // 테이블 데이터 번역
+            // table1 (작성정보)
+            if (koreanValues.table1 && Array.isArray(koreanValues.table1)) {
+                translatedValues.table1 = koreanValues.table1.map(row => {
+                    return row.map(cell => {
+                        if (!cell) return '';
+                        
+                        // 특정단어 처리
+                        let translatedCell = cell;
+                        for (const [koreanWord, englishWord] of Object.entries(customWords)) {
+                            if (cell && cell.includes(koreanWord)) {
+                                translatedCell = translatedCell.replace(new RegExp(koreanWord, 'g'), englishWord);
+                            }
+                        }
+                        
+                        // 기본 번역
+                        if (translatedCell === '작성') return 'Creation';
+                        if (translatedCell === '작성사유') return 'Reason for Creation';
+                        
+                        // 날짜 형식 변환 - 접두어 보존
+                        if (translatedCell && translatedCell.includes('가족관계등록부작성일')) {
+                            const dateMatch = translatedCell.match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                            if (dateMatch) {
+                                const [_, year, month, day] = dateMatch;
+                                return `[Family Relationship Register Creation Date] ${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                            }
+                        }
+                        
+                        // 작성사유 번역
+                        if (translatedCell && translatedCell.includes('작성사유')) {
+                            if (translatedCell.includes('가족관계의 등록 등에 관한 법률 부칙 제3조제1항')) {
+                                return '[Reason for Creation] Article 3(1) of the Addenda to the Act on the Registration of Family Relations';
+                            }
+                        }
+                        
+                        // 일반 날짜 형식 변환
+                        const dateMatch = translatedCell.match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                        if (dateMatch) {
+                            const [_, year, month, day] = dateMatch;
+                            return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                        }
+                        
+                        return translatedCell;
+                    });
+                });
+            } else {
+                translatedValues.table1 = [];
+            }
+            
+            // table2 (인적사항)
+            if (koreanValues.table2 && Array.isArray(koreanValues.table2)) {
+                translatedValues.table2 = koreanValues.table2.map(row => {
+                    return row.map((cell, index) => {
+                        if (!cell) return '';
+                        
+                        // 특정단어 처리
+                        let translatedCell = cell;
+                        for (const [koreanWord, englishWord] of Object.entries(customWords)) {
+                            if (cell && cell.includes(koreanWord)) {
+                                translatedCell = translatedCell.replace(new RegExp(koreanWord, 'g'), englishWord);
+                            }
+                        }
+                        
+                        // 열 위치에 따른 번역
+                        if (index === 0) { // 구분
+                            if (translatedCell === '본인') return 'Subject';
+                            if (translatedCell === '부') return 'Father';
+                            if (translatedCell === '모') return 'Mother';
+                        } else if (index === 4) { // 성별
+                            if (translatedCell === '남') return 'Male';
+                            if (translatedCell === '여') return 'Female';
+                        } else if (index === 2) { // 출생연월일
+                            const dateMatch = translatedCell.match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                            if (dateMatch) {
+                                const [_, year, month, day] = dateMatch;
+                                return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                            }
+                        }
+                        
+                        return translatedCell;
+                    });
+                });
+            } else {
+                translatedValues.table2 = [];
+            }
+            
+            // table3 (일반등록사항)
+            if (koreanValues.table3 && Array.isArray(koreanValues.table3)) {
+                translatedValues.table3 = koreanValues.table3.map(row => {
+                    return row.map((cell, index) => {
+                        if (!cell) return '';
+                        
+                        // 특정단어 처리
+                        let translatedCell = cell;
+                        for (const [koreanWord, englishWord] of Object.entries(customWords)) {
+                            if (cell.includes(koreanWord)) {
+                                translatedCell = translatedCell.replace(new RegExp(koreanWord, 'g'), englishWord);
+                            }
+                        }
+                        
+                        // 열 위치에 따른 번역
+                        if (index === 0) { // 구분
+                            if (translatedCell === '출생') return 'Birth';
+                        }
+                        
+                        // 출생 관련 정보 번역
+                        if (translatedCell.includes('[출생장소]')) {
+                            const birthPlaceMatch = translatedCell.match(/\[출생장소\]\s*([^\[]+)/);
+                            const birthPlace = birthPlaceMatch ? birthPlaceMatch[1].trim() : '';
+                            
+                            const reportDateMatch = translatedCell.match(/\[신고일\]\s*(\d+년\s*\d+월\s*\d+일)/);
+                            const reportDate = reportDateMatch ? reportDateMatch[1].trim() : '';
+                            
+                            const reporterMatch = translatedCell.match(/\[신고인\]\s*([^\[]+)$/);
+                            const reporter = reporterMatch ? reporterMatch[1].trim() : '';
+                            
+                            let result = '[Birth Place] ' + birthPlace;
+                            
+                            if (reportDate) {
+                                const dateMatch = reportDate.match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                                if (dateMatch) {
+                                    const [_, year, month, day] = dateMatch;
+                                    result += ` [Report Date] ${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                                } else {
+                                    result += ` [Report Date] ${reportDate}`;
+                                }
+                            }
+                            
+                            if (reporter) {
+                                if (reporter === '부') {
+                                    result += ' [Declarant] Father';
+                                } else if (reporter === '모') {
+                                    result += ' [Declarant] Mother';
+                                } else {
+                                    result += ` [Declarant] ${reporter}`;
+                                }
+                            }
+                            
+                            return result;
+                        }
+                        
+                        // 일반 날짜 형식 변환
+                        const dateMatch = translatedCell.match(/(\d+)년\s*(\d+)월\s*(\d+)일/);
+                        if (dateMatch) {
+                            const [_, year, month, day] = dateMatch;
+                            return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+                        }
+                        
+                        return translatedCell;
+                    });
+                });
+            } else {
+                translatedValues.table3 = [];
+            }
+            
+            // 기타 정보 번역
+            translatedValues.certText = 'This is to certify that the above Basic Certificate (Detailed) is in accordance with the records of the Family Relationship Registry.';
+            
+            const issuanceDateMatch = koreanValues.issuanceDate ? koreanValues.issuanceDate.match(/(\d+)년\s*(\d+)월\s*(\d+)일/) : null;
+            if (issuanceDateMatch) {
+                const [_, year, month, day] = issuanceDateMatch;
+                translatedValues.issuanceDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+            } else {
+                translatedValues.issuanceDate = koreanValues.issuanceDate || '';
+            }
+            
+            translatedValues.issuancePlace = koreanValues.issuancePlace ? `Issuing Authority: ${koreanValues.issuancePlace}` : '';
+            translatedValues.issuanceTime = koreanValues.issuanceTime ? `Issue Time: ${koreanValues.issuanceTime}` : '';
+            translatedValues.issuer = koreanValues.issuer || '';
+            translatedValues.issuerContact = koreanValues.issuerContact || '';
+            translatedValues.applicant = koreanValues.applicant ? `Applicant: ${koreanValues.applicant}` : '';
+            translatedValues.issueNumber = koreanValues.issueNumber ? `Issue Number: ${koreanValues.issueNumber}` : '';
+            
+            // 미국 제출용 옵션 처리 (기본증명서에 한함)
+            if (documentTypeSelect.value === 'basic' && forUsaCheckbox.checked) {
+                if (translatedValues.table3 && translatedValues.table3[0] && translatedValues.table3[0][1]) {
+                    translatedValues.table3[0][1] += ' (Republic of Korea)';
+                }
+            }
+            
+            console.log('클라이언트측 기본 번역 완료');
+            return translatedValues;
+        }
+
+        // 테이블 표시 값 수집 (테이블이 존재하지 않는 경우 처리)
+        function collectTableValuesFromDisplay(tableId) {
+            const table = document.getElementById(tableId);
+            if (!table) {
+                console.warn(`테이블을 찾을 수 없음: ${tableId}`);
+                return [];
+            }
+            
+            const rows = table.rows;
+            const tableData = [];
+            
+            // 첫 번째 행은 제외 (헤더)
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].cells;
+                const rowData = [];
+                
+                for (let j = 0; j < cells.length; j++) {
+                    const input = cells[j].querySelector('input');
+                    if (input) {
+                        rowData.push(input.value);
+                    } else {
+                        rowData.push('');
+                    }
+                }
+                
+                tableData.push(rowData);
+            }
+            
+            return tableData;
+        }
+        
+        // Word 파일 다운로드 버튼 클릭 이벤트
+        downloadWordBtn.addEventListener('click', async () => {
+            // 로딩 표시
+            loadingSpinner.style.display = 'block';
+            loadingOverlay.style.display = 'block';
+            
+            try {
+                // 현재 선택된 문서 유형에 따라 템플릿 파일 결정
+                const documentType = documentTypeSelect.value;
+                let templateName;
+                
+                switch (documentType) {
+                    case 'basic':
+                        templateName = 'basic_certificate.docx';
+                        break;
+                    case 'family':
+                        templateName = 'family_relations_certificate.docx';
+                        break;
+                    case 'marriage':
+                        templateName = 'marriage_relation_certificate.docx';
+                        break;
+                    default:
+                        throw new Error('지원되지 않는 문서 유형입니다.');
+                }
+                
+                // 번역 결과 수집
+                const englishValues = {
+                    title: document.getElementById('english_title').value,
+                    registrationNumber: document.getElementById('english_registrationNumber').value,
+                    table1: collectTableValuesFromDisplay('englishTable1'),
+                    table2: collectTableValuesFromDisplay('englishTable2'),
+                    table3: collectTableValuesFromDisplay('englishTable3'),
+                    certText: document.getElementById('english_certText').value,
+                    issuanceDate: document.getElementById('english_issuanceDate').value,
+                    issuancePlace: document.getElementById('english_issuancePlace').value,
+                    issuanceTime: document.getElementById('english_issuanceTime').value,
+                    issuer: document.getElementById('english_issuer').value,
+                    issuerContact: document.getElementById('english_issuerContact').value,
+                    applicant: document.getElementById('english_applicant').value,
+                    issueNumber: document.getElementById('english_issueNumber').value
+                };
+                
+                // 치환할 값 매핑
+                const replacements = {
+                    '[1]': englishValues.registrationNumber || '',
+                    '[2]': (englishValues.table1[0] && englishValues.table1[0][1]) || '',
+                    '[3]': (englishValues.table1[1] && englishValues.table1[1][1]) || '',
+                    '[4]': (englishValues.table2[0] && englishValues.table2[0][0]) || '',
+                    '[5]': (englishValues.table2[0] && englishValues.table2[0][1]) || '',
+                    '[6]': (englishValues.table2[0] && englishValues.table2[0][2]) || '',
+                    '[7]': (englishValues.table2[0] && englishValues.table2[0][3]) || '',
+                    '[8]': (englishValues.table2[0] && englishValues.table2[0][4]) || '',
+                    '[9]': (englishValues.table2[0] && englishValues.table2[0][5]) || '',
+                    '[10]': (englishValues.table3[0] && englishValues.table3[0][1]) || '',
+                    '[11]': englishValues.issuanceDate || '',
+                    '[12]': englishValues.issuancePlace || '',
+                    '[13]': englishValues.issuanceTime || '',
+                    '[14]': englishValues.applicant || '',
+                    '[15]': englishValues.issueNumber || ''
+                };
+
+                // 디버깅 출력
+                console.log('치환할 값:', JSON.stringify(replacements, null, 2));
+                
+                // 날짜 형식 조정 (MM/DD/YYYY → MM/DD/YYYY 형식 유지)
+                // [6] 출생연월일 형식 확인 (만약 날짜 형식이 잘못된 경우 수정)
+                if (replacements['[6]'] && replacements['[6]'].match(/^\d{2}\/\d{2}\/\d{2}$/)) {
+                    // YY 형식으로 된 경우 YYYY로 변환 (예: '01/01/70' → '01/01/1970')
+                    const dateParts = replacements['[6]'].split('/');
+                    if (dateParts.length === 3 && dateParts[2].length === 2) {
+                        const year = parseInt(dateParts[2]);
+                        // 00-49는 2000년대, 50-99는 1900년대로 가정
+                        const fullYear = year < 50 ? 2000 + year : 1900 + year;
+                        replacements['[6]'] = `${dateParts[0]}/${dateParts[1]}/${fullYear}`;
+                    }
+                }
+
+                console.log('템플릿 치환할 값:', replacements);
+                
+                // 템플릿 파일 요청 및 다운로드 - JSON 본문 사용
+                const response = await fetch(`${API_BASE_URL}/fill-template`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        templateName: templateName,
+                        replacements: replacements
+                    })
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = '템플릿 처리 중 오류가 발생했습니다.';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (e) {
+                        // JSON 파싱 오류 무시
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                // 응답을 Blob으로 변환
+                const blob = await response.blob();
+                
+                // 다운로드
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `번역_완료_${templateName}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showNotification(successNotice, '번역 완료 문서가 다운로드되었습니다.');
+            } catch (error) {
+                console.error('Word 파일 생성 중 오류:', error);
+                showNotification(errorNotice, error.message);
+            } finally {
+                loadingSpinner.style.display = 'none';
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        // Word 문서 생성 및 다운로드
+        async function generateWordDocument(koreanValues, englishValues) {
+            try {
+                // 라이브러리 확인
+                if (typeof window.docx === 'undefined') {
+                    throw new Error("docx 라이브러리를 찾을 수 없습니다. 페이지를 새로고침하고 다시 시도하세요.");
+                }
+                
+                // docx 객체 참조
+                const { Document, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, AlignmentType, WidthType, BorderStyle } = window.docx;
+                
+                const documentType = documentTypeSelect.value;
+                let documentTitle = '';
+                
+                switch (documentType) {
+                    case 'basic':
+                        documentTitle = '기본증명서 (상세) / Basic Certificate (Detailed)';
+                        break;
+                    case 'family':
+                        documentTitle = '가족관계증명서 / Family Relations Certificate';
+                        break;
+                    case 'marriage':
+                        documentTitle = '혼인관계증명서 / Marriage Certificate';
+                        break;
+                    default:
+                        documentTitle = '문서 번역 / Document Translation';
+                }
+                
+                // docx.js를 사용하여 Word 문서 생성
+                const doc = new Document({
+                    sections: [{
+                        properties: {},
+                        children: [
+                            new Paragraph({
+                                text: documentTitle,
+                                heading: HeadingLevel.HEADING_1,
+                                alignment: AlignmentType.CENTER
+                            }),
+                            new Paragraph({
+                                text: '',
+                                spacing: {
+                                    after: 200
+                                }
+                            })
+                        ]
+                    }]
+                });
+                
+                // 기본 정보 추가
+                doc.addSection({
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            text: "기본 정보 / Basic Information",
+                            heading: HeadingLevel.HEADING_2
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `등록기준지 / Registration Address: `,
+                                    bold: true
+                                }),
+                                new TextRun({
+                                    text: koreanValues.registrationNumber
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${englishValues.registrationNumber}`
+                                })
+                            ],
+                            spacing: {
+                                after: 200
+                            }
+                        })
+                    ]
+                });
+                
+                // 작성정보 테이블 추가
+                if (koreanValues.table1 && koreanValues.table1.length > 0) {
+                    addTableToDoc(doc, "작성정보 / Creation Information", koreanValues.table1, englishValues.table1, 
+                        ['구분 / Classification', '상세내용 / Details']);
+                }
+                
+                // 인적사항 테이블 추가
+                if (koreanValues.table2 && koreanValues.table2.length > 0) {
+                    addTableToDoc(doc, "인적사항 / Personal Information", koreanValues.table2, englishValues.table2, 
+                        ['구분 / Classification', '성명 / Name', '출생연월일 / Birth Date', '주민등록번호 / Resident Registration No.', 
+                        '성별 / Gender', '본 / Family Origin', '기타 / Others']);
+                }
+                
+                // 일반등록사항 테이블 추가
+                if (koreanValues.table3 && koreanValues.table3.length > 0) {
+                    addTableToDoc(doc, "일반등록사항 / General Registration", koreanValues.table3, englishValues.table3, 
+                        ['구분 / Classification', '상세내용 / Details']);
+                }
+                
+                // 기타 정보 추가
+                doc.addSection({
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            text: "증명 정보 / Certification Information",
+                            heading: HeadingLevel.HEADING_2
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${koreanValues.certText}`
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${englishValues.certText}`
+                                })
+                            ],
+                            spacing: {
+                                after: 200
+                            }
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `발행 날짜 / Issue Date: `,
+                                    bold: true
+                                }),
+                                new TextRun({
+                                    text: koreanValues.issuanceDate
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: englishValues.issuanceDate
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `발행 기관 / Issuing Authority: `,
+                                    bold: true
+                                }),
+                                new TextRun({
+                                    text: koreanValues.issuancePlace
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: englishValues.issuancePlace
+                                })
+                            ]
+                        })
+                    ]
+                });
+                
+                // 추가 정보가 있으면 추가
+                const additionalInfo = [];
+                
+                if (koreanValues.issuanceTime) {
+                    additionalInfo.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `발급 시각 / Issue Time: `,
+                                    bold: true
+                                }),
+                                new TextRun({
+                                    text: koreanValues.issuanceTime
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: englishValues.issuanceTime
+                                })
+                            ]
+                        })
+                    );
+                }
+                
+                if (koreanValues.applicant) {
+                    additionalInfo.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `신청인 / Applicant: `,
+                                    bold: true
+                                }),
+                                new TextRun({
+                                    text: koreanValues.applicant
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: englishValues.applicant
+                                })
+                            ]
+                        })
+                    );
+                }
+                
+                if (koreanValues.issueNumber) {
+                    additionalInfo.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `발행번호 / Issue Number: `,
+                                    bold: true
+                                }),
+                                new TextRun({
+                                    text: koreanValues.issueNumber
+                                })
+                            ]
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: englishValues.issueNumber
+                                })
+                            ]
+                        })
+                    );
+                }
+                
+                if (additionalInfo.length > 0) {
+                    doc.addSection({
+                        properties: {},
+                        children: additionalInfo
+                    });
+                }
+                
+                // 문서 생성 및 다운로드
+                const { Packer } = window.docx;
+                const blob = await Packer.toBlob(doc);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${documentTitle}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                function addTableToDoc(doc, title, koreanData, englishData, headers) {
+                    const rows = [];
+                    
+                    // 헤더 행 추가
+                    rows.push(
+                        new TableRow({
+                            children: headers.map(header => 
+                                new TableCell({
+                                    children: [new Paragraph(header)],
+                                    shading: {
+                                        fill: "EEEEEE"
+                                    }
+                                })
+                            )
+                        })
+                    );
+                    
+                    // 데이터 행 추가
+                    for (let i = 0; i < koreanData.length; i++) {
+                        const rowCells = [];
+                        
+                        for (let j = 0; j < koreanData[i].length; j++) {
+                            rowCells.push(
+                                new TableCell({
+                                    children: [
+                                        new Paragraph(koreanData[i][j] || ''),
+                                        new Paragraph(englishData[i] ? (englishData[i][j] || '') : '')
+                                    ]
+                                })
+                            );
+                        }
+                        
+                        rows.push(new TableRow({ children: rowCells }));
+                    }
+                    
+                    doc.addSection({
+                        properties: {},
+                        children: [
+                            new Paragraph({
+                                text: title,
+                                heading: HeadingLevel.HEADING_2
+                            }),
+                            new Table({
+                                rows: rows,
+                                width: {
+                                    size: 100,
+                                    type: WidthType.PERCENTAGE
+                                }
+                            }),
+                            new Paragraph({
+                                text: '',
+                                spacing: {
+                                    after: 200
+                                }
+                            })
+                        ]
+                    });
+                }
+            } catch (error) {
+                console.error("Word 문서 생성 오류:", error);
+                alert("Word 문서 생성 중 오류가 발생했습니다: " + error.message);
+                throw error;
+            }
+        }
+        
+        // 새 작업 버튼 클릭 이벤트
+        newTaskBtn.addEventListener('click', () => {
+            // 초기화
+            pdfFileInput.value = '';
+            fileUploadArea.querySelector('p').textContent = '파일을 끌어다 놓거나 클릭하여 선택하세요';
+            documentTypeSelect.value = '';
+            documentTypeOptions.style.display = 'none';
+            fieldSection.style.display = 'none';
+            translationSection.style.display = 'none';
+            readPdfBtn.disabled = true;
+            
+            // 특정단어 입력 초기화
+            customWordsList.innerHTML = '';
+            addCustomWordField();
+            
+            showNotification(successNotice, '새 작업을 시작합니다.');
+        });
+        
+        // 초기 특정단어 필드 추가
+        addCustomWordField();
+    </script>
+</body>
+</html>
